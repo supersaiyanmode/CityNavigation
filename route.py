@@ -108,16 +108,25 @@ class BFSSearch(object):
 		
 class DFSSearch(object):
 	def search(self, node, successorFn, pathCostFn, sortKey, goalFn):
-		fringe = [(node,Meta())]
+		m=Meta()
+		m.cities=[node]
+		fringe = [(node,m)]
 
 		while fringe:
 			curCity, meta = fringe.pop(0)
 			if goalFn(curCity):
 				return curCity, meta
+			print meta
+			outwardHighways = successorFn(curCity, sortKey)
+			for highway in outwardHighways : 	
+				nextCity = highway.city2
 				m = Meta();
-				nextCity = cityFn(nextCityName)
 				m.pathCost = meta.pathCost + pathCostFn(curCity, nextCity)
-				fringe.insert((nextcity, m))
+				m.totalTime = meta.totalTime + highway.time
+                                m.totalDistance = meta.totalDistance + highway.length
+                                m.cities = meta.cities + [nextCity]
+
+				fringe.insert(0,(nextCity, m))
 
 class AStarSearch(object):
 	pass
