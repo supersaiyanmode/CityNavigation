@@ -10,6 +10,7 @@ class Meta(object):
 		self.cities = []
 		self.totalTime = 0
 		self.totalDistance = 0
+		self.heurisiticValue = 0
 	
 	def __repr__(self):
 		return "%d %f"%(self.totalDistance, self.totalTime) + " " +  " => ".join(x.name for x in self.cities)
@@ -84,7 +85,7 @@ class HighwayStore(object):
 		return sorted(self.outwardHighways[city1], key=sortKey)
 
 class BFSSearch(object):
-	def search(self, node, successorFn, pathCostFn, sortKey, goalFn):
+	def search(self, node, successorFn, pathCostFn, sortKey, goalFn, heuristic=None):
 		m = Meta()
 		m.cities = [node]
 		fringe = [(node, m)]
@@ -107,7 +108,7 @@ class BFSSearch(object):
 
 		
 class DFSSearch(object):
-	def search(self, node, successorFn, pathCostFn, sortKey, goalFn):
+	def search(self, node, successorFn, pathCostFn, sortKey, goalFn, heuristic=None):
 		m=Meta()
 		m.cities=[node]
 		fringe = [(node,m)]
@@ -129,8 +130,28 @@ class DFSSearch(object):
 				fringe.insert(0,(nextCity, m))
 
 class AStarSearch(object):
-	pass
+	def search(self, node, successorFn, pathCostFn, sortKey, goalFn, heuristicFn):
+		m = Meta()
+		m.cities = [node]
+		fringe = [(node, m)]
 
+		while fringe:
+			curCity, meta = min(fringe, key=lambda x: x[1].heurisiticValue + x[1].pathCost)
+			print "Current meta:", meta
+
+			if goalFn(curCity):
+				return curCity, meta
+
+			outwardHighways = successorFn(curCity, sortKey)
+			for highway in outwardHighways:
+				nextCity = highway.city2
+				m = Meta()
+				m.pathCost = meta.pathCost + pathCostFn(curCity, nextCity)
+				m.totalTime = meta.totalTime + highway.time
+				m.totalDistance = meta.totalDistance + highway.length
+				m.cities = meta.cities + [nextCity]
+				m.heurisiticValue = heuristicFn(nextCity)
+				fringe.append((nextCity, m))
 
 def main():
 	with open("city-gps.txt") as f:
