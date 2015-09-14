@@ -1,6 +1,6 @@
 import sys
 from collections import defaultdict
-
+from math import sin, cos, sqrt, atan2, radians
 
 SPEED_LIMIT_DEFAULT = 40
 
@@ -83,6 +83,9 @@ class HighwayStore(object):
 	
 	def getOutwardHighways(self, city1, sortKey):
 		return sorted(self.outwardHighways[city1], key=sortKey)
+	
+	def maxSpeed(self):
+		return max(x.speed for x in self.highway.itervalues())
 
 class BFSSearch(object):
 	def search(self, node, successorFn, pathCostFn, sortKey, goalFn, heuristic=None):
@@ -100,7 +103,7 @@ class BFSSearch(object):
 			for highway in outwardHighways:
 				nextCity = highway.city2
 				m = Meta()
-				m.pathCost = meta.pathCost + pathCostFn(curCity, nextCity)
+				m.pathCost = meta.pathCost + pathCostFn(highway)
 				m.totalTime = meta.totalTime + highway.time
 				m.totalDistance = meta.totalDistance + highway.length
 				m.cities = meta.cities + [nextCity]
@@ -122,7 +125,7 @@ class DFSSearch(object):
 			for highway in outwardHighways : 	
 				nextCity = highway.city2
 				m = Meta();
-				m.pathCost = meta.pathCost + pathCostFn(curCity, nextCity)
+				m.pathCost = meta.pathCost + pathCostFn(highway)
 				m.totalTime = meta.totalTime + highway.time
                                 m.totalDistance = meta.totalDistance + highway.length
                                 m.cities = meta.cities + [nextCity]
@@ -136,7 +139,9 @@ class AStarSearch(object):
 		fringe = [(node, m)]
 
 		while fringe:
-			curCity, meta = min(fringe, key=lambda x: x[1].heurisiticValue + x[1].pathCost)
+			obj = min(fringe, key=lambda x: x[1].heurisiticValue + x[1].pathCost)
+			fringe.remove(obj)
+			curCity, meta = obj
 			print "Current meta:", meta
 
 			if goalFn(curCity):
@@ -146,12 +151,32 @@ class AStarSearch(object):
 			for highway in outwardHighways:
 				nextCity = highway.city2
 				m = Meta()
-				m.pathCost = meta.pathCost + pathCostFn(curCity, nextCity)
+				m.pathCost = meta.pathCost + pathCostFn(highway)
 				m.totalTime = meta.totalTime + highway.time
 				m.totalDistance = meta.totalDistance + highway.length
 				m.cities = meta.cities + [nextCity]
 				m.heurisiticValue = heuristicFn(nextCity)
 				fringe.append((nextCity, m))
+
+def curvedDistance(lat1, long1, lat2, long2):
+	"""
+	Author: Michael0x2a (http://stackoverflow.com/users/646543/michael0x2a)
+	The function below was found on StackOverflow: http://stackoverflow.com/a/19412565/227884
+	"""
+	R = 3959.0
+
+	lat1 = radians(lat1)
+	lon1 = radians(long1)
+	lat2 = radians(lat2)
+	lon2 = radians(long2)
+
+	dlon = lon2 - lon1
+	dlat = lat2 - lat1
+
+	a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
+	c = 2 * atan2(sqrt(a), sqrt(1 - a))
+
+	return  R * c
 
 def main():
 	with open("city-gps.txt") as f:
@@ -160,17 +185,40 @@ def main():
 	with open("road-segments.txt") as f:
 		highwayStore = HighwayStore(f, cityStore)
 	
-	startCity = sys.argv[1]
-	endCity = sys.argv[2]
+	startCity = cityStore.cities[sys.argv[1]]
+	endCity = cityStore.cities[sys.argv[2]]
 	routingOption = sys.argv[3]
 	routingAlgo = sys.argv[4]
 
-
 	searches = {"bfs": BFSSearch, "dfs": DFSSearch, "astar": AStarSearch}
+
+	cityDistToGoal = lambda city: curvedDistance(city.latitude, city.longitude, endCity.latitude, endCity.longitude)
+
+
+	options = {
+		"segments": {
+			"pathCostFn": lambda highway: 1,
+			"sortKey": lambda highway: -highway.length,
+			"heurisiticFn": lambda city: 1, #Dummy
+		},
+		"time": {
+			"pathCostFn": lambda highway: highway.time,
+			"sortKey": lambda highway: highway.time,
+			"heuristicFn": lambda city: cityDistToGoal(city) / highwayStore.maxSpeed()
+		},
+		"distance": {
+			"pathCostFn": lambda highway: highway.length,
+			"sortKey": lambda highway: highway.length,
+			"heuristicFn": lambda city:	cityDistToGoal(city)
+		}
+	}
+	curOptions = options[routingOption]
+	
 	search = searches[routingAlgo]().search
-	goal, meta = search(cityStore.cities[startCity], highwayStore.getOutwardHighways, lambda x,y : 1,
-					lambda element: element.time, 
-					lambda x: x.name == endCity)
+	goal, meta = search(node=startCity, 
+						successorFn=highwayStore.getOutwardHighways,
+						goalFn=lambda x: x.name == endCity.name,
+						**curOptions)
 
 	print meta	
 
