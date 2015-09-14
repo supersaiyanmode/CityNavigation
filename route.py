@@ -11,10 +11,9 @@ class Meta(object):
 		self.totalTime = 0
 		self.totalDistance = 0
 	
-	def __str__(self):
-		return "%d %f"%(self.totalDistance, self.totalTime) + " " +  " ".join(x.name for x in self.cities)
-
-		
+	def __repr__(self):
+		return "%d %f"%(self.totalDistance, self.totalTime) + " " +  " => ".join(x.name for x in self.cities)
+	
 class City(object):
 	def __init__(self, name, latitude=None, longitude=None):
 		self.name = name
@@ -37,7 +36,7 @@ class Highway(object):
 		self.city2 = city2
 		self.length = length
 		self.speedLimit = speedLimit
-		self.time = length / speedLimit
+		self.time = length / float(speedLimit)
 		self.name = name
 	
 	def __repr__(self):
@@ -85,25 +84,24 @@ class HighwayStore(object):
 		return sorted(self.outwardHighways[city1], key=sortKey)
 
 class BFSSearch(object):
-	def __init__(self, timeFn, distFn):
-		self.timeFn = timeFn
-		self.distFn = distFn
-
 	def search(self, node, successorFn, pathCostFn, sortKey, goalFn):
-		fringe = [(node, Meta())]
+		m = Meta()
+		m.cities = [node]
+		fringe = [(node, m)]
 
 		while fringe:
 			curCity, meta = fringe.pop(0)
+			print "Current Meta:", meta
 
 			if goalFn(curCity):
 				return curCity, meta
-			outwardHighways = successorFn(node, sortKey)
+			outwardHighways = successorFn(curCity, sortKey)
 			for highway in outwardHighways:
 				nextCity = highway.city2
 				m = Meta()
 				m.pathCost = meta.pathCost + pathCostFn(curCity, nextCity)
-				m.totalTime = meta.totalTime + self.timeFn(curCity, nextCity)
-				m.totalDistance = meta.totalDistance + self.distFn(curCity, nextCity)
+				m.totalTime = meta.totalTime + highway.time
+				m.totalDistance = meta.totalDistance + highway.length
 				m.cities = meta.cities + [nextCity]
 				fringe.append((nextCity, m))
 
@@ -139,15 +137,12 @@ def main():
 
 
 	searches = {"bfs": BFSSearch, "dfs": DFSSearch, "astar": AStarSearch}
-	searchClass = searches[routingAlgo]
-	searchObj = searchClass(lambda x, y: highwayStore.highways[(x,y)].time,
-							lambda x,y: highwayStore.highways[(x,y)].length)
-	search = searchObj.search
+	search = searches[routingAlgo]().search
 	goal, meta = search(cityStore.cities[startCity], highwayStore.getOutwardHighways, lambda x,y : 1,
 					lambda element: element.time, 
 					lambda x: x.name == endCity)
 
-	print str(meta)	
+	print meta	
 
 if __name__ == '__main__':
 	main()
