@@ -12,7 +12,7 @@ class Meta(object):
 		self.totalDistance = 0
 	
 	def __str__(self):
-		print "%d %f"%(self.totalDistance, self.totalTime), " ".join(self.cities)
+		return "%d %f"%(self.totalDistance, self.totalTime) + " " +  " ".join(x.name for x in self.cities)
 
 		
 class City(object):
@@ -28,7 +28,9 @@ class City(object):
 	def __hash__(self):
 		return hash(self.name)
 	
-
+	def __repr__(self):
+		return "<City: '%s' (%f, %f)>"%(self.name, self.latitude, self.longitude)
+	
 class Highway(object):
 	def __init__(self, city1, city2, length, speedLimit, name):
 		self.city1 = city1
@@ -37,6 +39,9 @@ class Highway(object):
 		self.speedLimit = speedLimit
 		self.time = length / speedLimit
 		self.name = name
+	
+	def __repr__(self):
+		return "<Highway: '%s' %s => %s>"%(self.name, repr(self.city1), repr(self.city2))
 
 class CityStore(object):
 	def __init__(self, f):
@@ -66,7 +71,7 @@ class HighwayStore(object):
 			highways[(highwayObj1.city1, highwayObj1.city2)] = highwayObj1
 			highways[(highwayObj2.city2, highwayObj2.city1)] = highwayObj2
 			outwardHighways[highwayObj1.city1].append(highwayObj1)
-			outwardHighways[highwayObj2.city2].append(highwayObj2)
+			outwardHighways[highwayObj2.city1].append(highwayObj2)
 		self.highways = highways
 		self.outwardHighways = outwardHighways
 
@@ -87,7 +92,6 @@ class BFSSearch(object):
 	def search(self, node, successorFn, pathCostFn, sortKey, goalFn):
 		fringe = [(node, Meta())]
 
-		import pdb; pdb.set_trace()
 		while fringe:
 			curCity, meta = fringe.pop(0)
 
