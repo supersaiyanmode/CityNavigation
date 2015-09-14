@@ -45,7 +45,7 @@ class Highway(object):
 
 class CityStore(object):
 	def __init__(self, f):
-		cities = defaultdict(lambda : City("NONE"))
+		cities = {} 
 		for line in f:
 			if not line.strip():
 				continue
@@ -77,15 +77,15 @@ class HighwayStore(object):
 
 	def parseHighway(self, line):
 		cityName1, cityName2, length, speedLimit, name = line.strip().split(" ")
-		city1 = self.cityStore.cities[cityName1]
-		city2 = self.cityStore.cities[cityName2]
+		city1 = self.cityStore.cities.setdefault(cityName1, City(cityName1, None, None))
+		city2 = self.cityStore.cities.setdefault(cityName2, City(cityName2, None, None))
 		return Highway(city1, city2, int(length), int(speedLimit or '0') or SPEED_LIMIT_DEFAULT, name)
 	
 	def getOutwardHighways(self, city1, sortKey):
 		return sorted(self.outwardHighways[city1], key=sortKey)
 	
 	def maxSpeed(self):
-		return max(x.speed for x in self.highway.itervalues())
+		return max(x.speedLimit for x in self.highways.itervalues())
 
 class BFSSearch(object):
 	def search(self, node, successorFn, pathCostFn, sortKey, goalFn, heuristic=None):
@@ -155,7 +155,10 @@ class AStarSearch(object):
 				m.totalTime = meta.totalTime + highway.time
 				m.totalDistance = meta.totalDistance + highway.length
 				m.cities = meta.cities + [nextCity]
-				m.heurisiticValue = heuristicFn(nextCity)
+				try:
+					m.heurisiticValue = heuristicFn(nextCity)
+				except:
+					import pdb; pdb.set_trace()
 				fringe.append((nextCity, m))
 
 def curvedDistance(lat1, long1, lat2, long2):
@@ -178,12 +181,40 @@ def curvedDistance(lat1, long1, lat2, long2):
 
 	return  R * c
 
+def populateLatLongForCity(highwayStore, cityStore, city, seenCities=None):
+	if seenCities is None:
+		seenCities = []
+	connectedCities = [h.city2 for h in highwayStore.getOutwardHighways(city, lambda x: 1)]
+	emptyCities = filter(lambda x: x.latitude is None, connectedCities)
+	nonEmptyCities = filter(lambda x: x.latitude is not None, connectedCities)
+	if nonEmptyCities:
+		city.latitude = sum(x.latitude for x in nonEmptyCities)/float(len(nonEmptyCities))
+		city.longitude = sum(x.longitude for x in nonEmptyCities)/float(len(nonEmptyCities))
+		print "Populating approx coordinates for City: ", city
+		return
+	
+	emptyNonSeenCities = filter(lambda x: x not in seenCities, emptyCities)
+	for city in emptyNonSeenCities:
+		populateLatLongForCity(highwayStore, cityStore, city, seenCities + [city])
+
+
+def populateLatLong(highwayStore, cityStore):
+	for city in cityStore.cities.itervalues():
+		if city.latitude is None and city.longitude is None:
+			populateLatLongForCity(highwayStore, cityStore, city)
+			print "-"*25
+	raw_input()
+
+
+
 def main():
 	with open("city-gps.txt") as f:
 		cityStore = CityStore(f)
 	
 	with open("road-segments.txt") as f:
 		highwayStore = HighwayStore(f, cityStore)
+	
+	populateLatLong(highwayStore, cityStore)
 	
 	startCity = cityStore.cities[sys.argv[1]]
 	endCity = cityStore.cities[sys.argv[2]]
@@ -199,7 +230,7 @@ def main():
 		"segments": {
 			"pathCostFn": lambda highway: 1,
 			"sortKey": lambda highway: -highway.length,
-			"heurisiticFn": lambda city: 1, #Dummy
+			"heuristicFn": lambda city: 1, #Dummy
 		},
 		"time": {
 			"pathCostFn": lambda highway: highway.time,
