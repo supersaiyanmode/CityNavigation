@@ -7,12 +7,26 @@ SPEED_LIMIT_DEFAULT = 40
 class Meta(object):
 	def __init__(self):
 		self.pathCost = 0
+		self.cities = []
+		self.totalTime = 0
+		self.totalDistance = 0
+	
+	def __str__(self):
+		print "%d %f"%(self.totalDistance, self.totalTime), " ".join(self.cities)
+
 		
 class City(object):
-	def __init__(self, name, latitude, longitude):
+	def __init__(self, name, latitude=None, longitude=None):
 		self.name = name
 		self.latitude = latitude
 		self.longitude = longitude
+		self.empty = (not latitude) and (not longitude)
+			
+	def __eq__(self, other):
+		return self.name == other.name
+
+	def __hash__(self):
+		return hash(self.name)
 	
 
 class Highway(object):
@@ -26,7 +40,7 @@ class Highway(object):
 
 class CityStore(object):
 	def __init__(self, f):
-		cities = {}
+		cities = defaultdict(lambda : City("NONE"))
 		for line in f:
 			if not line.strip():
 				continue
@@ -39,40 +53,54 @@ class CityStore(object):
 		return City(name, float(lat), float(lon))
 
 class HighwayStore(object):
-	def __init__(self, f):
+	def __init__(self, f, cityStore):
+		self.cityStore = cityStore
 		highways = {}
-		connectedCities = defaultdict(list)
+		outwardHighways = defaultdict(list)
 		for line in f:
 			if not line.strip():
 				continue
-			highwayObj = self.parseHighway(line.rstrip())
-			highways[(highwayObj.city1, highwayObj.city2)] = highwayObj
-			highways[(highwayObj.city2, highwayObj.city1)] = highwayObj
-			connectedCities[highwayObj.city1].append(highwayObj.city2)
-			connectedCities[highwayObj.city2].append(highwayObj.city1)
+			highwayObj1 = self.parseHighway(line.rstrip())
+			highwayObj2 = self.parseHighway(line.rstrip())
+			highwayObj2.city1, highwayObj2.city2 = highwayObj2.city2, highwayObj2.city1
+			highways[(highwayObj1.city1, highwayObj1.city2)] = highwayObj1
+			highways[(highwayObj2.city2, highwayObj2.city1)] = highwayObj2
+			outwardHighways[highwayObj1.city1].append(highwayObj1)
+			outwardHighways[highwayObj2.city2].append(highwayObj2)
 		self.highways = highways
-		self.connectedCities = connectedCities
+		self.outwardHighways = outwardHighways
 
 	def parseHighway(self, line):
-		city1, city2, length, speedLimit, name = line.strip().split(" ")
+		cityName1, cityName2, length, speedLimit, name = line.strip().split(" ")
+		city1 = self.cityStore.cities[cityName1]
+		city2 = self.cityStore.cities[cityName2]
 		return Highway(city1, city2, int(length), int(speedLimit or '0') or SPEED_LIMIT_DEFAULT, name)
 	
-	
-	def getConnectedCities(self, city1, sortKey):
-		return sorted(self.connectedCities[city1], key=sortKey)
+	def getOutwardHighways(self, city1, sortKey):
+		return sorted(self.outwardHighways[city1], key=sortKey)
 
 class BFSSearch(object):
+	def __init__(self, timeFn, distFn):
+		self.timeFn = timeFn
+		self.distFn = distFn
+
 	def search(self, node, successorFn, pathCostFn, sortKey, goalFn):
 		fringe = [(node, Meta())]
 
+		import pdb; pdb.set_trace()
 		while fringe:
 			curCity, meta = fringe.pop(0)
+
 			if goalFn(curCity):
 				return curCity, meta
-			connectedCities = successorFn(node, sortKey)
-			for nextCity in connectedCities:
-				m = Meta();
+			outwardHighways = successorFn(node, sortKey)
+			for highway in outwardHighways:
+				nextCity = highway.city2
+				m = Meta()
 				m.pathCost = meta.pathCost + pathCostFn(curCity, nextCity)
+				m.totalTime = meta.totalTime + self.timeFn(curCity, nextCity)
+				m.totalDistance = meta.totalDistance + self.distFn(curCity, nextCity)
+				m.cities = meta.cities + [nextCity]
 				fringe.append((nextCity, m))
 
 		
@@ -84,9 +112,8 @@ class DFSSearch(object):
 			curCity, meta = fringe.pop(0)
 			if goalFn(curCity):
 				return curCity, meta
-			connectedCities = successorFn(node, sortKey)
-			for nextCity in connectedCities
 				m = Meta();
+				nextCity = cityFn(nextCityName)
 				m.pathCost = meta.pathCost + pathCostFn(curCity, nextCity)
 				fringe.insert((nextcity, m))
 
@@ -99,7 +126,7 @@ def main():
 		cityStore = CityStore(f)
 	
 	with open("road-segments.txt") as f:
-		highwayStore = HighwayStore(f)
+		highwayStore = HighwayStore(f, cityStore)
 	
 	startCity = sys.argv[1]
 	endCity = sys.argv[2]
@@ -108,12 +135,15 @@ def main():
 
 
 	searches = {"bfs": BFSSearch, "dfs": DFSSearch, "astar": AStarSearch}
-	search = searches[routingAlgo]().search
-	res = search(startCity, highwayStore.getConnectedCities, lambda x,y : 1,
+	searchClass = searches[routingAlgo]
+	searchObj = searchClass(lambda x, y: highwayStore.highways[(x,y)].time,
+							lambda x,y: highwayStore.highways[(x,y)].length)
+	search = searchObj.search
+	goal, meta = search(cityStore.cities[startCity], highwayStore.getOutwardHighways, lambda x,y : 1,
 					lambda element: element.time, 
 					lambda x: x.name == endCity)
-	
-	
+
+	print str(meta)	
 
 if __name__ == '__main__':
 	main()
