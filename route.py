@@ -13,7 +13,7 @@ class Meta(object):
 		self.heurisiticValue = 0
 	
 	def __repr__(self):
-		return "%d %f"%(self.totalDistance, self.totalTime) + " " +  " => ".join(x.name for x in self.cities)
+		return "%d %f"%(self.totalDistance, self.totalTime) + " " +  " ".join(x.name for x in self.cities)
 	
 class City(object):
 	def __init__(self, name, latitude=None, longitude=None):
@@ -21,6 +21,12 @@ class City(object):
 		self.latitude = latitude
 		self.longitude = longitude
 		self.empty = (not latitude) and (not longitude)
+	
+	def hasGPS(self):
+		return self.latitude is not None or self.longitude is not None
+	
+	def location(self):
+		return (self.latitude, self.longitude) if self.hasGPS() else (self.tempLat, self.tempLong)
 			
 	def __eq__(self, other):
 		return self.name == other.name
@@ -155,19 +161,20 @@ class AStarSearch(object):
 				m.totalTime = meta.totalTime + highway.time
 				m.totalDistance = meta.totalDistance + highway.length
 				m.cities = meta.cities + [nextCity]
-				try:
-					m.heurisiticValue = heuristicFn(nextCity)
-				except:
-					import pdb; pdb.set_trace()
+				if not nextCity.hasGPS():
+					nextCity.tempLat = curCity.latitude
+					nextCity.tempLong = curCity.longitude
+				m.heurisiticValue = heuristicFn(nextCity)
 				fringe.append((nextCity, m))
 
-def curvedDistance(lat1, long1, lat2, long2):
+def curvedDistance(pos1, pos2):
 	"""
 	Author: Michael0x2a (http://stackoverflow.com/users/646543/michael0x2a)
 	The function below was found on StackOverflow: http://stackoverflow.com/a/19412565/227884
 	"""
 	R = 3959.0
-
+	lat1, long1 = pos1
+	lat2, long2 = pos2
 	lat1 = radians(lat1)
 	lon1 = radians(long1)
 	lat2 = radians(lat2)
@@ -181,40 +188,12 @@ def curvedDistance(lat1, long1, lat2, long2):
 
 	return  R * c
 
-def populateLatLongForCity(highwayStore, cityStore, city, seenCities=None):
-	if seenCities is None:
-		seenCities = []
-	connectedCities = [h.city2 for h in highwayStore.getOutwardHighways(city, lambda x: 1)]
-	emptyCities = filter(lambda x: x.latitude is None, connectedCities)
-	nonEmptyCities = filter(lambda x: x.latitude is not None, connectedCities)
-	if nonEmptyCities:
-		city.latitude = sum(x.latitude for x in nonEmptyCities)/float(len(nonEmptyCities))
-		city.longitude = sum(x.longitude for x in nonEmptyCities)/float(len(nonEmptyCities))
-		print "Populating approx coordinates for City: ", city
-		return
-	
-	emptyNonSeenCities = filter(lambda x: x not in seenCities, emptyCities)
-	for city in emptyNonSeenCities:
-		populateLatLongForCity(highwayStore, cityStore, city, seenCities + [city])
-
-
-def populateLatLong(highwayStore, cityStore):
-	for city in cityStore.cities.itervalues():
-		if city.latitude is None and city.longitude is None:
-			populateLatLongForCity(highwayStore, cityStore, city)
-			print "-"*25
-	raw_input()
-
-
-
 def main():
 	with open("city-gps.txt") as f:
 		cityStore = CityStore(f)
 	
 	with open("road-segments.txt") as f:
 		highwayStore = HighwayStore(f, cityStore)
-	
-	populateLatLong(highwayStore, cityStore)
 	
 	startCity = cityStore.cities[sys.argv[1]]
 	endCity = cityStore.cities[sys.argv[2]]
@@ -223,8 +202,7 @@ def main():
 
 	searches = {"bfs": BFSSearch, "dfs": DFSSearch, "astar": AStarSearch}
 
-	cityDistToGoal = lambda city: curvedDistance(city.latitude, city.longitude, endCity.latitude, endCity.longitude)
-
+	cityDistToGoal = lambda city: curvedDistance(city.location(), endCity.location())
 
 	options = {
 		"segments": {
