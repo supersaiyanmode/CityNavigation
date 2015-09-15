@@ -2,7 +2,7 @@ import sys
 from collections import defaultdict
 from math import sin, cos, sqrt, atan2, radians
 
-SPEED_LIMIT_DEFAULT = 40
+MAX_SPEED_LIMIT = 40
 
 class Meta(object):
 	def __init__(self):
@@ -85,7 +85,7 @@ class HighwayStore(object):
 		cityName1, cityName2, length, speedLimit, name = line.strip().split(" ")
 		city1 = self.cityStore.cities.setdefault(cityName1, City(cityName1, None, None))
 		city2 = self.cityStore.cities.setdefault(cityName2, City(cityName2, None, None))
-		return Highway(city1, city2, int(length), int(speedLimit or '0') or SPEED_LIMIT_DEFAULT, name)
+		return Highway(city1, city2, int(length), int(speedLimit or '0') or MAX_SPEED_LIMIT, name)
 	
 	def getOutwardHighways(self, city1, sortKey):
 		return sorted(self.outwardHighways[city1], key=sortKey)
@@ -94,7 +94,7 @@ class HighwayStore(object):
 		return max(x.speedLimit for x in self.highways.itervalues())
 
 class BFSSearch(object):
-	def search(self, node, successorFn, pathCostFn, sortKey, goalFn, heuristic=None):
+	def search(self, node, successorFn, pathCostFn, sortKey, goal, heuristic=None):
 		m = Meta()
 		m.cities = [node]
 		fringe = [(node, m)]
@@ -103,7 +103,7 @@ class BFSSearch(object):
 			curCity, meta = fringe.pop(0)
 			print "Current Meta:", meta
 
-			if goalFn(curCity):
+			if curCity == goal:
 				return curCity, meta
 			outwardHighways = successorFn(curCity, sortKey)
 			for highway in outwardHighways:
@@ -117,14 +117,14 @@ class BFSSearch(object):
 
 		
 class DFSSearch(object):
-	def search(self, node, successorFn, pathCostFn, sortKey, goalFn, heuristic=None):
+	def search(self, node, successorFn, pathCostFn, sortKey, goal, heuristic=None):
 		m=Meta()
 		m.cities=[node]
 		fringe = [(node,m)]
 
 		while fringe:
 			curCity, meta = fringe.pop(0)
-			if goalFn(curCity):
+			if curCity == goal:
 				return curCity, meta
 			print meta
 			outwardHighways = successorFn(curCity, sortKey)
@@ -139,7 +139,7 @@ class DFSSearch(object):
 				fringe.insert(0,(nextCity, m))
 
 class AStarSearch(object):
-	def search(self, node, successorFn, pathCostFn, sortKey, goalFn, heuristicFn):
+	def search(self, node, successorFn, pathCostFn, sortKey, goal, heuristicFn):
 		m = Meta()
 		m.cities = [node]
 		fringe = [(node, m)]
@@ -150,7 +150,7 @@ class AStarSearch(object):
 			curCity, meta = obj
 			print "Current meta:", meta
 
-			if goalFn(curCity):
+			if curCity == goal:
 				return curCity, meta
 
 			outwardHighways = successorFn(curCity, sortKey)
@@ -162,10 +162,18 @@ class AStarSearch(object):
 				m.totalDistance = meta.totalDistance + highway.length
 				m.cities = meta.cities + [nextCity]
 				if not nextCity.hasGPS():
-					nextCity.tempLat = curCity.latitude
-					nextCity.tempLong = curCity.longitude
+					fixTempLocation(curCity, nextCity, goal, highway)
 				m.heurisiticValue = heuristicFn(nextCity)
 				fringe.append((nextCity, m))
+
+def fixTempLocation(curCity, nextCity, goal, highway):
+	lat1, long1 = curCity.location()
+	lat2, long2 = goal.location()
+	dx = long2 - long1
+	dy = lat2 - lat1
+	angle = atan2(dy, dx)
+	nextCity.tempLong = long1 + highway.length * cos(angle)
+	nextCity.tempLat = lat1 + highway.length * sin(angle)
 
 def curvedDistance(pos1, pos2):
 	"""
@@ -194,7 +202,9 @@ def main():
 	
 	with open("road-segments.txt") as f:
 		highwayStore = HighwayStore(f, cityStore)
-	
+
+	MAX_SPEED_LIMIT = highwayStore.maxSpeed()
+
 	startCity = cityStore.cities[sys.argv[1]]
 	endCity = cityStore.cities[sys.argv[2]]
 	routingOption = sys.argv[3]
@@ -213,7 +223,7 @@ def main():
 		"time": {
 			"pathCostFn": lambda highway: highway.time,
 			"sortKey": lambda highway: highway.time,
-			"heuristicFn": lambda city: cityDistToGoal(city) / highwayStore.maxSpeed()
+			"heuristicFn": lambda city: cityDistToGoal(city) / MAX_SPEED_LIMIT
 		},
 		"distance": {
 			"pathCostFn": lambda highway: highway.length,
@@ -226,7 +236,7 @@ def main():
 	search = searches[routingAlgo]().search
 	goal, meta = search(node=startCity, 
 						successorFn=highwayStore.getOutwardHighways,
-						goalFn=lambda x: x.name == endCity.name,
+						goal=endCity,
 						**curOptions)
 
 	print meta	
