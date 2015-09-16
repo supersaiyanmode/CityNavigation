@@ -1,8 +1,9 @@
 import sys
 from collections import defaultdict
-from math import sin, cos, sqrt, atan2, radians
+from math import sin, cos, sqrt, atan2, radians, asin, acos, degrees
 
 MAX_SPEED_LIMIT = 40
+EARTH_RADIUS = 3959.0
 
 class Meta(object):
 	def __init__(self):
@@ -167,20 +168,32 @@ class AStarSearch(object):
 				fringe.append((nextCity, m))
 
 def fixTempLocation(curCity, nextCity, goal, highway):
-	lat1, long1 = curCity.location()
-	lat2, long2 = goal.location()
+        """
+        Author: David M (http://stackoverflow.com/users/493559/david-m)
+        The function below is used to get the position of the second point, given
+        the first point and the angle. Modified a bit to suit our case. Read the
+        text at the beginning of the file for more info on how the temporary location
+        is being fixed.
+        """
+	lat1, long1 = map(radians, curCity.location())
+	lat2, long2 = map(radians, goal.location())
 	dx = long2 - long1
 	dy = lat2 - lat1
 	angle = atan2(dy, dx)
-	nextCity.tempLong = long1 + highway.length * cos(angle)
-	nextCity.tempLat = lat1 + highway.length * sin(angle)
+
+        endLat = asin(sin(lat1)*cos(highway.length/EARTH_RADIUS) +
+                        cos(lat1)*sin(highway.length/EARTH_RADIUS)*cos(angle))
+        endLong = long1 + atan2(sin(angle)*sin(highway.length/EARTH_RADIUS)*cos(lat1),
+                        cos(highway.length/EARTH_RADIUS) - sin(lat1)*sin(endLat))
+
+	nextCity.tempLat = degrees(endLat)
+	nextCity.tempLong = degrees(endLong)
 
 def curvedDistance(pos1, pos2):
 	"""
 	Author: Michael0x2a (http://stackoverflow.com/users/646543/michael0x2a)
 	The function below was found on StackOverflow: http://stackoverflow.com/a/19412565/227884
 	"""
-	R = 3959.0
 	lat1, long1 = pos1
 	lat2, long2 = pos2
 	lat1 = radians(lat1)
@@ -194,7 +207,7 @@ def curvedDistance(pos1, pos2):
 	a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
 	c = 2 * atan2(sqrt(a), sqrt(1 - a))
 
-	return  R * c
+	return  EARTH_RADIUS * c
 
 def main():
 	with open("city-gps.txt") as f:
