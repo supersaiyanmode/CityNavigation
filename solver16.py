@@ -2,6 +2,7 @@ import sys
 from copy import deepcopy
 from itertools import chain
 from heapq import heappush, heappop
+from Queue import PriorityQueue
 
 class State(object):
 	DIR_LEFT = 'L'
@@ -108,15 +109,17 @@ class State(object):
 			"\nPath: " + self.movement)
 
 def astar(state):
-	queue = [state]
+	queue = PriorityQueue()
+        queue.put((0, state))
+        [state]
 
 	seen = set()
 	while queue:
-		best = min(queue, key=lambda x: x.f())
-		queue.remove(best)
+		score, best = queue.get()
 
 		print "Currently Evaluating: "
 		print best
+		print "Number of nodes:", len(seen)
 		print ""
 		#raw_input()
 		if best.isGoal():
@@ -126,19 +129,19 @@ def astar(state):
 		for pos in range(4):
 			left = best.moveLeft(pos)
 			if left.to_tuple() not in seen:
-				queue.append(left)
+				queue.put((left.f(), left))
 
 			right = best.moveRight(pos)
 			if right.to_tuple() not in seen:
-				queue.append(right)
+				queue.put((right.f(), right))
 
 			up = best.moveUp(pos)
 			if up.to_tuple() not in seen:
-				queue.append(up)
+				queue.put((up.f(), up))
 
 			down = best.moveDown(pos)	
 			if down.to_tuple() not in seen:
-				queue.append(down)
+				queue.put((down.f(), down))
 
 def main():
 	with open(sys.argv[1]) as f:
