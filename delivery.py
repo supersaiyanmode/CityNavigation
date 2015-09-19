@@ -1,3 +1,54 @@
+"""
+Authors: Srivatsan Iyer, Dwipam Kataria
+
+The program searches through the search space and checks for the goal condition. A "State" is
+represented in a 5x3 table. Sample state:
+    +---------+++--------------+-----------------+--------------+-------------+----------------+
+    | NAME    ||| Frank        | Irene           | Heather      | George      | Jerry          |
+    | PRODUCT ||| Elephant     | Candelabrum     | Amplifier    | Banister    | Doorknob       |
+    | ADDRESS ||| Orange Drive | Kirkwood Street | North Avenue | Lake Avenue | Maxwell Street |
+    +---------+++--------------+-----------------+--------------+-------------+----------------+
+
+Current conditions (PartialOrder class represents each column in the below state):
+
+    +---------+----------+----------+-----------+----------+-------------+-----------+-----------+--------------+-----------+----------------+
+    | NAME    | Name1    | Name2    | Frank     |          |             | Heather   | Jerry     |              | Name 3    |                |
+    | PRODUCT | Banister | Product1 | Door Knob | Product2 | Product3    | Product 4 | Product 5 | Elephant     | Product 6 | Amplifier      |
+    | ADDRESS |          |          |           | Kirkwood | Lake Avenue |           |           | North Avenue |           | Maxwell Street |
+    +---------+----------+----------+-----------+----------+-------------+-----------+-----------+--------------+-----------+----------------+
+
+Goal conditions (PartialOrder class represents each column in the below state):
+
+    +---------+-------------+----------+----------+----------+----------+--------------+-----------+----------+----------------+
+    | NAME    | Name1       | Name2    | Irene    | George   |          |              | Heather   | Name3    |                |
+    | PRODUCT | Candelabrum | Banister | Product1 | Product2 | Product3 | Product 4    | Product 5 | Elephant | Product 6      |
+    | ADDRESS |             |          |          |          | Kirkwood | Orange Drive |           |          | Maxwell Street |
+    +---------+-------------+----------+----------+----------+----------+--------------+-----------+----------+----------------+
+The goal
+conditions has been derived from the question statement according to the following logic:
+    1) Every person did not receive his/her order, and every order did not go to the place
+       that it was destined to go to. For a given state, get name1, name2, name3, as well as
+       product1, product2, .. product6; substitute the values in the "Current Conditions" state
+       and check for any matches. Any matches means that the current state is not a goal state.
+       For eg: If the current state has "name1" receiving a "Banister", then the current state
+       is not a goal state.
+    2) If Heather received an Elephant, then she should live in North Avenue. Or if she received
+       an Amplifier, then she should live in Maxwell Street. This is because that is where these
+       articles originally arrived.
+    3) If Irene ordered a door knob, it couldn't have been received by Frank -- because Frank
+       received a door knob. 
+    4) If Irene ordered an Elephant, then the person who ordered banister shouldn't be in North Avenue
+    5) If Irene ordered an Amplifier, then the person who ordered banisted shouldn't be in Maxwell_Street
+    6) Substitute name1 .. name3 and product1 .. product6 values in the "Current Conditions" state. Check for
+       Overlaps. Through overlapping, the number of columns reduces from 10 to 5. For two partialOrders to
+       be able to overlap, they should have one of the three attributes not-null and equal. Other attributes
+       should not be unequal (exception being null values). If atleast one attribute is equal, and any of the
+       remainder two are unequal, then the state can not only not overlap, but the entire state is not a goal
+       state.
+
+"""
+
+
 import sys
 
 
@@ -89,7 +140,7 @@ class State(object):
 		product5 = self.get(name="Heather")[0].package
 		product6 = self.get(address="Maxwell_Street")[0].package
 
-		
+		#Condition1
 		if self.get(name=name1, package="Banister"):
 			return False
 		if self.get(name=name2, package=product1):
@@ -111,7 +162,7 @@ class State(object):
 		if self.get(package="Amplifier", address="Maxwell_Street"):
 			return False
 		
-		#Condition1
+		#Condition2
 		item1 = self.get(address="Orange_Drive")[0].package #Heather received this item1!
 		if item1 == "Elephant":
 			if not self.get(name="Heather", address="North_Avenue"):
@@ -120,16 +171,19 @@ class State(object):
 			if not self.get(name="Heather", address="Maxwell_Street"):
 				return False
 
-		#Condition2
+		#Condition3
 		if (self.get(package="Doorknob")[0].name == 'Irene' and #If Irene ordered doorknob & was recd by one who
 				self.get(package="Banister")[0].name != 'Frank'): #ordered Banister, then the latter can't be Frank because he recd doorknob
 			return False
+                
+		#Condition4
 		if self.get(package="Elephant")[0].name == 'Irene' and self.get(package="Banister")[0].address != 'North_Avenue':
 			return False
+		#Condition5
 		if self.get(package="Amplifier")[0].name == 'Irene' and self.get(package="Banister")[0].address != 'Maxwell_Street':
 			return False
 		
-		#Condition3: Partial Orders and overlap! :)
+		#Condition6: Partial Orders and overlap! :)
 		partialOrders = [
 			PartialOrder(name=name1, package="Banister"),
 			PartialOrder(name=name2, package=product1),
