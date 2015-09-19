@@ -22,25 +22,25 @@ class State(object):
 		self.prevState = prevState
 		self.movement = '' if movement is None else movement
 		self.depth = depth
-		self.heurisitic = self.heurisitic2
+		self.heurisitic = self.heurisitic6
 	
 	def moveLeft(self, rowNum):
 		arr = State.moveLeftArr(self.array, rowNum)
-		return State(arr, self.depth + 1, self, self.movement + 'L%d'%(rowNum+1))
+		return State(arr, self.depth + 1, self, self.movement + ' L%d'%(rowNum+1))
 	
 	def moveRight(self, rowNum):
 		arr = State.moveRightArr(self.array, rowNum)
-		return State(arr, self.depth + 1, self, self.movement + 'R%d'%(rowNum+1))
+		return State(arr, self.depth + 1, self, self.movement + ' R%d'%(rowNum+1))
 
 	def moveUp(self, colNum):
 		arr = deepcopy(self.array)
 		arr = zip(*State.moveLeftArr(zip(*arr), colNum))
-		return State(arr, self.depth + 1, self, self.movement + 'U%d'%(colNum+1))
+		return State(arr, self.depth + 1, self, self.movement + ' U%d'%(colNum+1))
 	
 	def moveDown(self, colNum):
 		arr = deepcopy(self.array)
 		arr = zip(*State.moveRightArr(zip(*arr), colNum))
-		return State(arr, self.depth + 1, self, self.movement + 'D%d'%(colNum+1))
+		return State(arr, self.depth + 1, self, self.movement + ' D%d'%(colNum+1))
 
 	def isGoal(self):
 		return self.array == self.GOAL
@@ -50,6 +50,9 @@ class State(object):
 	
 	def heurisitic2(self):
 		return max(State.manhattanRound(self.array, self.GOAL, num) for num in range(1,17))
+        
+        def heurisitic6(self):
+		return sum(State.manhattanRound(self.array, self.GOAL, num) for num in range(1,17))
 
 	def heurisitic3(self):
 		return len([x for x,y in zip(chain(*self.GOAL), chain(*self.array)) if x != y])
@@ -150,6 +153,8 @@ def main():
 	s = State(inputArr)
 	result = astar(s)
 	print result
+	print ""
+	print result.movement.strip()
 
 if __name__ == '__main__':
 	main()
