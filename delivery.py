@@ -57,6 +57,10 @@ PACKAGES = "Amplifier Banister Candelabrum Doorknob Elephant".split()
 ADDRESSES = "Kirkwood_Street Lake_Avenue Maxwell_Street North_Avenue Orange_Drive".split()
 
 def permutation(fixed, available):
+	"""Returns the permutation where fixed elements of the array
+	occupy the left end of the array, and to fill up the element at
+	arr[len(fixed)], we have len(available) options.
+	"""
 	if not available:
 		return [fixed]
 	result = [] 
