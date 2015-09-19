@@ -1,3 +1,23 @@
+"""
+	Authors: Srivatsan Iyer, Dwipam Katariya
+	
+	This performs an A* Search with one of the following two heuristic functions:
+	
+	1) Summation of all manhattan distances (considering the wrap-around). Please note that
+	   this function is not admissible. For example: Consider the goal state and execute the 
+	   move L1 on it. Then, h(n) = 4, but actual cost is only 1. This, embarrasingly, seems 
+	   to work for puzzles. Clearly, the path it returns might not always be optimal. Set
+				HEURISTIC_FUNC_NUM = 1 on line number 18 below.
+	2) Maximum of all manhattan distances (considering the wrap-around). This is an admissible
+	   heuristic. This takes a lot of time for any puzzle with > 4 depth. This is because there 
+	   are many states with equal h(n). Set:
+				HEURISTIC_FUNC_NUM = 2 on line number 18 below.
+	
+"""
+
+HEURISTIC_FUNC_NUM = 1
+
+
 import sys
 from copy import deepcopy
 from itertools import chain
@@ -22,25 +42,25 @@ class State(object):
 		self.prevState = prevState
 		self.movement = '' if movement is None else movement
 		self.depth = depth
-		self.heurisitic = self.heurisitic2
+		self.heurisitic = getattr(self, "heurisitic%d"%HEURISTIC_FUNC_NUM)
 	
 	def moveLeft(self, rowNum):
 		arr = State.moveLeftArr(self.array, rowNum)
-		return State(arr, self.depth + 1, self, self.movement + 'L%d'%(rowNum+1))
+		return State(arr, self.depth + 1, self, self.movement + ' L%d'%(rowNum+1))
 	
 	def moveRight(self, rowNum):
 		arr = State.moveRightArr(self.array, rowNum)
-		return State(arr, self.depth + 1, self, self.movement + 'R%d'%(rowNum+1))
+		return State(arr, self.depth + 1, self, self.movement + ' R%d'%(rowNum+1))
 
 	def moveUp(self, colNum):
 		arr = deepcopy(self.array)
 		arr = zip(*State.moveLeftArr(zip(*arr), colNum))
-		return State(arr, self.depth + 1, self, self.movement + 'U%d'%(colNum+1))
+		return State(arr, self.depth + 1, self, self.movement + ' U%d'%(colNum+1))
 	
 	def moveDown(self, colNum):
 		arr = deepcopy(self.array)
 		arr = zip(*State.moveRightArr(zip(*arr), colNum))
-		return State(arr, self.depth + 1, self, self.movement + 'D%d'%(colNum+1))
+		return State(arr, self.depth + 1, self, self.movement + ' D%d'%(colNum+1))
 
 	def isGoal(self):
 		return self.array == self.GOAL
@@ -50,19 +70,7 @@ class State(object):
 	
 	def heurisitic2(self):
 		return max(State.manhattanRound(self.array, self.GOAL, num) for num in range(1,17))
-
-	def heurisitic3(self):
-		return len([x for x,y in zip(chain(*self.GOAL), chain(*self.array)) if x != y])
 	
-	def heurisitic4(self):
-		return 0
-	
-	def heurisitic5(self):
-		zipped = [[x==y for x,y in zip(row1, row2)] for row1, row2 in zip(self.array, self.GOAL)]
-		goodRows = sum([1 if all(x for x in row) else 0 for row in zipped])
-		goodCols = sum([1 if all(x for x in row) else 0 for row in zip(*zipped)])
-		return 8 - goodRows - goodCols
-		
 	def f(self):
 		return self.depth + self.heurisitic()
 	
@@ -150,6 +158,8 @@ def main():
 	s = State(inputArr)
 	result = astar(s)
 	print result
+	print ""
+	print result.movement.strip()
 
 if __name__ == '__main__':
 	main()
