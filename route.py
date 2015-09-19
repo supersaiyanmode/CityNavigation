@@ -1,3 +1,54 @@
+"""    
+--------------------------------------------------------------------------------
+Authors: Srivatsan Iyer, Dwipam Katariya
+    
+Comparison of BFS and Astar with respect to Distance, Time, Segments
+and considering route from 
+1. Spencer,_Massachusetts to Bolto_Notch,_Connecticut 
+2. Englewood,_Tennessee to Dalton,_Georgia 
+
+we analyzed :
+
+1. While considering Time with minimum time function and using BFS, computation 
+   time on an average calculated is 214 milliseconds while using ASTAR it is 208 
+   milliseconds.
+2. While considering Distance with minimum distance function and using BFS, 
+   computation time on an average 
+   calculated is 201 milliseconds while using ASTAR it is 201 miliseconds.
+3. While considering Segments with minimum segments function, ASTAR works similar
+   to BFS and hence computation of both the algorithm remains the same.
+
+DFS ends up into infinite loop as it goes on expanding the first node it gets at
+every level. It also revisits the same set of cities back and forth. For example,
+when start city = Englewood,_Tennessee and end city = Dalton,_Georgia, program goes
+to and fro between Almond,_North_Carolina and Maryville,_Tennessee as both nodes
+ are connected to each other with the least distance in the fringe.
+
+AStar search seems to work the best for both "Time" and "Distance".
+
+Heuristic Functions:
+
+1) Distance: For distance, we simply calculate the curved distance
+   (curve of the globe), between two coordinates. Whichever cities do not have
+   longitude and latitude we calculate approximate coordinates.This is done by 
+   drawing an imaginary line that joins the previous city and the goal city.
+   The current city lies on this line at a distance equal to the length of the 
+   highway from the previous city. 
+2) Time: For time, we divide the curved distance by the maximum speed limit across
+   all highways.This will always give us the least time required to get to the goal.
+   Max Speed limit is used wherever the speed limit is not present
+3) Segments: For segments, the heuristic function is h(n) = 1. This makes AStar
+   search equivalent to BFS.
+
+The estimates based on curved distances between two coordinates produce good 
+heuristics judging from the results.
+
+Scope for improvement:
+1) We can pre-calculate some of the distances, segments, and time to major cities. 
+This will make it more accurate heuristic. 
+--------------------------------------------------------------------------------
+"""
+
 import sys
 from collections import defaultdict
 from math import sin, cos, sqrt, atan2, radians, asin, acos, degrees
