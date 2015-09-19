@@ -1,5 +1,5 @@
 """
-Authors: Srivatsan Iyer, Dwipam Kataria
+Authors: Srivatsan Iyer, Dwipam Katariya
 
 The program searches through the search space and checks for the goal condition. A "State" is
 represented in a 5x3 table. Sample state:
